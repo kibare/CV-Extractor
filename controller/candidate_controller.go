@@ -202,6 +202,35 @@ func GetCandidatesByFilters(c *gin.Context) {
     c.JSON(http.StatusOK, candidates)
 }
 
+func GetArchivedCandidatesByFilters(c *gin.Context) {
+    userClaims := c.MustGet("claims").(*utils.Claims)
+    var input CandidateFilterInput
+
+    if err := c.ShouldBindJSON(&input); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input", "details": err.Error()})
+        return
+    }
+
+    var query = config.DB.Preload("Position").Joins("JOIN positions ON candidates.position_id = positions.id").Joins("JOIN departments ON positions.department_id = departments.id").Where("departments.company_id = ?", userClaims.CompanyID).Where("positions.is_archive = ?", true)
+
+    if input.DepartmentID != 0 {
+        query = query.Where("positions.department_id = ?", input.DepartmentID)
+    }
+
+    if input.PositionID != 0 {
+        query = query.Where("position_id = ?", input.PositionID)
+    }
+
+    var candidates []models.Candidate
+    if err := query.Find(&candidates).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Candidates do not exist"})
+        return
+    }
+
+    c.JSON(http.StatusOK, candidates)
+}
+
+
 
 func EditCandidate(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)

@@ -76,6 +76,8 @@ func candidateRoutes(r *gin.RouterGroup) {
     r.PUT("/api/candidate/qualify-candidate/:id", controller.QualifyCandidate)
     r.DELETE("/api/candidate/delete-candidate/:id", controller.DeleteCandidate)
     r.POST("/api/candidate/get-candidates-by-filters", controller.GetCandidatesByFilters)
+    r.POST("/api/candidate/get-archived-candidates-by-filters", controller.GetArchivedCandidatesByFilters)
+
 }
 
 func departmentRoutes(r *gin.RouterGroup) {
