@@ -56,6 +56,7 @@ func positionRoutes(r *gin.RouterGroup) {
     r.DELETE("/api/position/delete-position/:id", controller.DeletePosition)
     r.PUT("/api/position/archive-position/:id", controller.ArchivePosition)
     r.GET("/api/position/get-archived-positions", controller.GetArchivedPositions)
+    r.PUT("/api/position/trash-position/:id", controller.TrashPosition)
 
 }
 

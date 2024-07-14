@@ -107,10 +107,10 @@ func GetAllPositions(c *gin.Context) {
 	}
 
 	var positions []models.Position
-	if err := config.DB.Where("department_id IN (?)", departmentIDs).Find(&positions).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"message": "Positions do not exist"})
-		return
-	}
+	if err := config.DB.Preload("Department").Where("department_id IN (?)", departmentIDs).Find(&positions).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Positions do not exist"})
+        return
+    }
 
 	c.JSON(http.StatusOK, positions)
 }
@@ -257,51 +257,40 @@ func ResolvePosition(c *gin.Context) {
 }
 
 func TrashPosition(c *gin.Context) {
-	userClaims := c.MustGet("claims").(*utils.Claims)
-	var input TrashPositionInput
-	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
-		return
-	}
+    userClaims := c.MustGet("claims").(*utils.Claims)
+    id := c.Param("id")
+    var position models.Position
+    if err := config.DB.First(&position, id).Error; err != nil {
+        log.Printf("Position not found: %v\n", err)
+        c.JSON(http.StatusNotFound, gin.H{"error": "Position not found"})
+        return
+    }
 
-	now := time.Now()
+    var department models.Department
+    if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
+        return
+    }
 
-	for _, id := range input.IDs {
-		var position models.Position
-		if err := config.DB.First(&position, id).Error; err != nil {
-			log.Printf("Position not found: %v\n", err)
-			c.JSON(http.StatusNotFound, gin.H{"error": "Position not found"})
-			return
-		}
+    if department.CompanyID != userClaims.CompanyID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to trash this position"})
+        return
+    }
 
-		var department models.Department
-		if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
-			return
-		}
+    position.IsTrash = !position.IsTrash
+    if position.IsTrash {
+        position.RemovedDate = time.Now()
+    }
 
-		if department.CompanyID != userClaims.CompanyID {
-			c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to trash this position"})
-			return
-		}
+    if err := config.DB.Save(&position).Error; err != nil {
+        log.Printf("Failed to trash position: %v\n", err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to trash position"})
+        return
+    }
 
-		position.IsTrash = !position.IsTrash
-		position.RemovedDate = now
-
-		if err := config.DB.Save(&position).Error; err != nil {
-			log.Printf("Failed to update position trash status: %v\n", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update position trash status"})
-			return
-		}
-	}
-
-	statusMessage := "Positions removed successfully"
-	if !now.IsZero() {
-		statusMessage = "Positions restored successfully"
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": statusMessage})
+    c.JSON(http.StatusOK, gin.H{"message": "Position trashed successfully", "position": position})
 }
+
 
 func ArchivePosition(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)

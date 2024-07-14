@@ -230,8 +230,6 @@ func GetArchivedCandidatesByFilters(c *gin.Context) {
     c.JSON(http.StatusOK, candidates)
 }
 
-
-
 func EditCandidate(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)
     id := c.Param("id")
