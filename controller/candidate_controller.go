@@ -174,6 +174,36 @@ func GetOneCandidate(c *gin.Context) {
     c.JSON(http.StatusOK, candidate)
 }
 
+func GetCandidatesByPosition(c *gin.Context) {
+    userClaims := c.MustGet("claims").(*utils.Claims)
+    positionID := c.Param("positionId")
+
+    var position models.Position
+    if err := config.DB.First(&position, positionID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Position does not exist"})
+        return
+    }
+
+    var department models.Department
+    if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
+        return
+    }
+
+    if department.CompanyID != userClaims.CompanyID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to view candidates for this position"})
+        return
+    }
+
+    var candidates []models.Candidate
+    if err := config.DB.Preload("Position").Preload("Position.Department").Where("position_id = ?", positionID).Find(&candidates).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "No candidates found for this position"})
+        return
+    }
+
+    c.JSON(http.StatusOK, candidates)
+}
+
 func GetCandidatesByFilters(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)
     var input CandidateFilterInput

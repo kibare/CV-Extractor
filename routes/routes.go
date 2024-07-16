@@ -57,7 +57,7 @@ func positionRoutes(r *gin.RouterGroup) {
     r.PUT("/api/position/archive-position/:id", controller.ArchivePosition)
     r.GET("/api/position/get-archived-positions", controller.GetArchivedPositions)
     r.PUT("/api/position/trash-position/:id", controller.TrashPosition)
-
+    r.PUT("/api/position/resolve-position/:id", controller.ResolvePosition)
 }
 
 func userRoutes(r *gin.RouterGroup) {
@@ -71,6 +71,7 @@ func userRoutes(r *gin.RouterGroup) {
 func candidateRoutes(r *gin.RouterGroup) {
     r.POST("/api/candidate/create-candidate", controller.CreateCandidate)
     r.GET("/api/candidate/get-all-candidates", controller.GetAllCandidates)
+    r.GET("/api/candidate/get-candidates-by-position/:positionId", controller.GetCandidatesByPosition) // Add this line
     r.GET("/api/candidate/get-one-candidate/:id", controller.GetOneCandidate)
     r.PUT("/api/candidate/edit-candidate/:id", controller.EditCandidate)
     r.PUT("/api/candidate/score-candidate/:id", controller.ScoreCandidate)
@@ -88,3 +89,4 @@ func departmentRoutes(r *gin.RouterGroup) {
     r.PUT("/api/department/edit-department/:id", controller.EditDepartment)
     r.DELETE("/api/department/delete-department/:id", controller.DeleteDepartment)
 }
+
