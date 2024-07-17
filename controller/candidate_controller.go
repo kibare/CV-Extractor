@@ -371,46 +371,41 @@ func ScoreCandidate(c *gin.Context) {
 
 func QualifyCandidate(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)
-    var input QualifyCandidateInput
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input", "details": err.Error()})
+    id := c.Param("id")
+
+    var candidate models.Candidate
+    if err := config.DB.First(&candidate, id).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Candidate does not exist"})
         return
     }
 
-    for _, id := range input.IDs {
-        var candidate models.Candidate
-        if err := config.DB.First(&candidate, id).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"message": "Candidate does not exist"})
-            return
-        }
+    var position models.Position
+    if err := config.DB.First(&position, candidate.PositionID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Position does not exist"})
+        return
+    }
 
-        var position models.Position
-        if err := config.DB.First(&position, candidate.PositionID).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"message": "Position does not exist"})
-            return
-        }
+    var department models.Department
+    if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
+        return
+    }
 
-        var department models.Department
-        if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
-            return
-        }
+    if department.CompanyID != userClaims.CompanyID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to qualify this candidate"})
+        return
+    }
 
-        if department.CompanyID != userClaims.CompanyID {
-            c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to qualify this candidate"})
-            return
-        }
+    candidate.IsQualified = !candidate.IsQualified
 
-        candidate.IsQualified = !candidate.IsQualified
-
-        if err := config.DB.Save(&candidate).Error; err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update candidate"})
-            return
-        }
+    if err := config.DB.Save(&candidate).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to update candidate"})
+        return
     }
 
     c.JSON(http.StatusOK, gin.H{"message": "Qualified status changed successfully"})
 }
+
 
 func DeleteCandidate(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)
