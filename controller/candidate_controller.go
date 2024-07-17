@@ -414,64 +414,37 @@ func QualifyCandidate(c *gin.Context) {
 
 func DeleteCandidate(c *gin.Context) {
     userClaims := c.MustGet("claims").(*utils.Claims)
-    var input DeleteCandidateInput
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input", "details": err.Error()})
+    candidateID := c.Param("id")
+
+    var candidate models.Candidate
+    if err := config.DB.First(&candidate, candidateID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Candidate does not exist"})
         return
     }
 
-    tx := config.DB.Begin()
-    if tx.Error != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to start transaction"})
+    var position models.Position
+    if err := config.DB.First(&position, candidate.PositionID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Position does not exist"})
         return
     }
 
-    defer func() {
-        if r := recover(); r != nil {
-            tx.Rollback()
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete candidates"})
-        }
-    }()
-
-    for _, id := range input.IDs {
-        var candidate models.Candidate
-        if err := tx.First(&candidate, id).Error; err != nil {
-            tx.Rollback()
-            c.JSON(http.StatusNotFound, gin.H{"message": "Candidate does not exist"})
-            return
-        }
-
-        var position models.Position
-        if err := config.DB.First(&position, candidate.PositionID).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"message": "Position does not exist"})
-            return
-        }
-
-        var department models.Department
-        if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
-            c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
-            return
-        }
-
-        if department.CompanyID != userClaims.CompanyID {
-            tx.Rollback()
-            c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to delete this candidate"})
-            return
-        }
-
-        if err := tx.Delete(&candidate).Error; err != nil {
-            tx.Rollback()
-            c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to delete candidate"})
-            return
-        }
-    }
-
-    if err := tx.Commit().Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to commit transaction"})
+    var department models.Department
+    if err := config.DB.First(&department, position.DepartmentID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"message": "Department does not exist"})
         return
     }
 
-    c.JSON(http.StatusOK, gin.H{"message": "Candidates deleted successfully"})
+    if department.CompanyID != userClaims.CompanyID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "You do not have access to delete this candidate"})
+        return
+    }
+
+    if err := config.DB.Delete(&candidate).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to delete candidate"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Candidate deleted successfully"})
 }
 
 func GetAll(c *gin.Context) {
