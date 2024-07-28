@@ -19,7 +19,7 @@ type EditCandidateInput struct {
 
 type ScoreCandidateInput struct {
     ID     uint   `json:"id" binding:"required"`
-    Score  int    `json:"score" binding:"required"`
+    Score  float64    `json:"score" binding:"required"`
     Skills string `json:"skills" binding:"required"`
 }
 
@@ -37,6 +37,7 @@ type CreateCandidateInput struct {
     Domicile   string `form:"domicile" binding:"required"`
     PositionID uint   `form:"positionId" binding:"required"`
     CVFile     *multipart.FileHeader `form:"cv_file" binding:"required"`
+    Score      float64 `form:"score" binding:"required"`
 }
 
 type CandidateFilterInput struct {
@@ -96,6 +97,7 @@ func CreateCandidate(c *gin.Context) {
         PositionID:  input.PositionID,
         CVFile:      fileURL,
         CreatedDate: time.Now(),
+        Score:       input.Score,
     }
 
     if err := config.DB.Create(&newCandidate).Error; err != nil {
